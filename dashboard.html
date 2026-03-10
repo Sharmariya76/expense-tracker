@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Expense Tracker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+    <style>
+        * {
+          margin: 0; padding: 0; box-sizing: border-box;
+        }
+        body {
+          background: #0d1b2a;
+          color: white;
+          font-family: 'Orbitron', sans-serif;
+          overflow-x: hidden;
+        }
+        nav {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 15px 30px;
+          background: rgba(0, 0, 0, 0.4);
+          position: fixed;
+          width: 100%;
+          top: 0;
+          z-index: 1000;
+        }
+        nav ul {
+          display: flex;
+          gap: 20px;
+          list-style: none;
+        }
+        nav a {
+          color: white;
+          text-decoration: none;
+          font-weight: bold;
+        }
+        .toggle-theme {
+          background: cyan;
+          color: black;
+          padding: 5px 10px;
+          border-radius: 8px;
+          cursor: pointer;
+        }
+        .container {
+          margin-top: 100px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+        .floating-title {
+          font-size: 60px;
+          margin: 20px;
+          text-shadow: 0 0 30px cyan;
+          animation: float 3s infinite ease-in-out;
+        }
+        @keyframes float {
+          0% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+          100% { transform: translateY(0); }
+        }
+        .card-container {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 25px;
+          max-width: 1000px;
+        }
+        .card {
+          background: rgba(255, 255, 255, 0.1);
+          padding: 20px;
+          border-radius: 15px;
+          width: 250px;
+          text-align: center;
+          box-shadow: 0 0 20px cyan;
+          transition: transform 0.3s;
+          cursor: pointer;
+        }
+        .card:hover {
+          transform: translateY(-10px);
+        }
+        .card h3 {
+          color: cyan;
+        }
+        footer {
+          text-align: center;
+          margin: 50px 0 20px;
+          font-size: 14px;
+        }
+        #authSection, #featureSection {
+          display: none;
+          margin-top: 40px;
+          text-align: center;
+        }
+        form {
+          background: rgba(255, 255, 255, 0.1);
+          padding: 25px;
+          border-radius: 10px;
+          box-shadow: 0 0 20px cyan;
+          display: inline-block;
+          margin-top: 30px;
+        }
+        input {
+          display: block;
+          margin: 10px auto;
+          padding: 8px;
+          width: 250px;
+        }
+        button {
+          padding: 10px 20px;
+          margin-top: 10px;
+          cursor: pointer;
+          background: cyan;
+          border: none;
+          font-weight: bold;
+        }
+        #featureSection p {
+          margin-top: 20px;
+          line-height: 1.6;
+          font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div>ExpenseTracker</div>
+    <ul>
+        <li><a href="#">Home</a></li>
+        <li><a href="#authSection">Login</a></li>
+        <li><a href="#authSection">Sign Up</a></li>
+        <li><button class="toggle-theme">Toggle Theme</button></li>
+    </ul>
+</nav>
+
+<div class="container">
+    <div class="floating-title">Expense Tracker</div>
+
+    <div class="card-container">
+        <div class="card" onclick="showAuth()">
+            <h3>Track Expenses</h3>
+            <p>Easily monitor and categorize your daily expenses.</p>
+        </div>
+        <div class="card">
+            <h3>Analytics</h3>
+            <p>Visual insights to help you understand your spending patterns.</p>
+        </div>
+        <div class="card">
+            <h3>Budget Goals</h3>
+            <p>Set monthly budgets and get alerts when nearing limits.</p>
+        </div>
+        <div class="card">
+            <h3>Export Data</h3>
+            <p>Download reports and summaries of your financial activity.</p>
+        </div>
+    </div>
+</div>
+
+<div id="authSection">
+    <h2>Login to Track Expenses</h2>
+    <form onsubmit="event.preventDefault(); showFeatures();">
+        <input type="text" placeholder="Full Name" required>
+        <input type="email" placeholder="Email" required>
+        <input type="password" placeholder="Password" required>
+        <button type="submit">Login</button>
+    </form>
+</div>
+
+<div id="featureSection">
+    <h1>Welcome to Expense Tracking</h1>
+    <p>
+        ✅ Add new expenses and categorize them.<br>
+        ✅ View daily, weekly, and monthly summaries.<br>
+        ✅ Set budgets and receive alerts.<br>
+        ✅ Export reports in PDF or CSV.<br>
+        ✅ Graphical insights to monitor trends.<br>
+        ✅ Secure login and personal tracking.
+    </p>
+</div>
+
+<footer>
+    © 2025 Expense Tracker. All rights reserved.
+</footer>
+
+<script>
+    function showAuth() {
+      document.getElementById('authSection').style.display = 'block';
+      window.scrollTo({ top: document.getElementById('authSection').offsetTop, behavior: 'smooth' });
+    }
+    function showFeatures() {
+      document.getElementById('authSection').style.display = 'none';
+      document.getElementById('featureSection').style.display = 'block';
+      window.scrollTo({ top: document.getElementById('featureSection').offsetTop, behavior: 'smooth' });
+    }
+</script>
+
+</body>
+</html>
