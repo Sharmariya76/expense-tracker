@@ -2,15 +2,16 @@ const express = require('express');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+// Default to port 80 if no environment PORT variable is specified
+const PORT = process.env.PORT || 80;
 
 // Serve static assets from the "public" folder
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Fallback route to serve the application
-app.get('*', (path.join(__dirname, 'public', 'index.html'), (req, res) => {
+app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
-}));
+});
 
 // Start the server
 app.listen(PORT, () => {
