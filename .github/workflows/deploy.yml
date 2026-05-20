@@ -13,18 +13,20 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup SSH
+      - name: Setup SSH Key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+          echo "${{ secrets.EC2_SSH_KEY }}" > key.pem
+          chmod 600 key.pem
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy index.html to EC2
+      - name: Copy index.html to EC2
         run: |
-          scp -i ~/.ssh/id_rsa index.html ubuntu@${{ secrets.EC2_HOST }}:/tmp/
+          scp -i key.pem index.html ubuntu@${{ secrets.EC2_HOST }}:/tmp/
 
-          ssh -i ~/.ssh/id_rsa ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
+      - name: Deploy to Nginx folder
+        run: |
+          ssh -i key.pem ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
             sudo mv /tmp/index.html /var/www/html/index.html
             sudo systemctl restart nginx
           EOF
