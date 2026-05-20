@@ -21,31 +21,37 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
-            # Include standard Node.js binary environments
-            export PATH=$PATH:/usr/bin:/usr/local/bin
+            # 1. Force the system to use absolute executable locations
+            NODE_BIN="/usr/bin/node"
+            NPM_BIN="/usr/bin/npm"
+            PM2_BIN="/usr/local/bin/pm2"
+
+            # Fallback path finding if standard location shifts
+            if [ ! -f "$PM2_BIN" ]; then PM2_BIN=$(which pm2 || echo "/usr/bin/pm2"); fi
+            if [ ! -f "$NPM_BIN" ]; then NPM_BIN=$(which npm || echo "/usr/local/bin/npm"); fi
 
             # Move to the application directory
             cd /home/ubuntu/expense-tracker
 
             echo "Updating files from production repository..."
             
-            # Initialize metadata if running for the first time
+            # Initialize project metadata if running for the first time using absolute npm path
             if [ ! -f package.json ]; then
-              npm init -y
-              npm install express
+              sudo $NPM_BIN init -y
+              sudo $NPM_BIN install express
             fi
 
-            # Install production dependencies
-            npm install --production
+            # Install production dependencies using absolute npm path
+            sudo $NPM_BIN install --production
 
-            # Run PM2 with sudo to grant it permission to bind to Port 80
-            if sudo env PATH=$PATH pm2 describe server > /dev/null 2>&1; then
+            # Run PM2 using its absolute file location combined with sudo
+            if sudo $PM2_BIN describe server > /dev/null 2>&1; then
               echo "Application process found. Performing Zero-Downtime Reload..."
-              sudo env PATH=$PATH pm2 reload server
+              sudo $PM2_BIN reload server
             else
               echo "Starting application process on port 80..."
-              sudo env PATH=$PATH pm2 start server.js --name "server"
+              sudo $PM2_BIN start server.js --name "server"
             fi
             
             # Save the PM2 state to recover on system reboots
-            sudo env PATH=$PATH pm2 save
+            sudo $PM2_BIN save
