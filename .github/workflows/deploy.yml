@@ -13,6 +13,18 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # STEP 1: Copy your project files from GitHub to your EC2 instance
+      - name: Copy files to EC2 via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          source: "server.js,public/"   # Files and folders to copy
+          target: "/home/ubuntu/expense-tracker"
+
+      # STEP 2: Log in via SSH and restart the server
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -21,32 +33,31 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
-            # 1. CRITICAL: Explicitly source NVM so the non-interactive shell can see node, npm, and pm2
+            # Load NVM environment variables so the runner sees node, npm, and pm2
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
-            # 2. Move directly into your application directory
+            # Navigate to the project directory
             cd /home/ubuntu/expense-tracker
 
-            echo "Syncing application code..."
+            echo "Syncing dependencies..."
             
-            # 3. Handle initialization if running cleanly
+            # Setup package configuration if it's missing
             if [ ! -f package.json ]; then
               npm init -y
               npm install express
             fi
 
-            # 4. Install project requirements 
+            # Install production dependencies
             npm install --production
 
-            # 5. Control PM2 lifecycle on port 3000 (which is forwarded to port 80)
+            # Start or restart the app using PM2 on port 3000 (forwarded to port 80)
             if pm2 describe server > /dev/null 2>&1; then
-              echo "Application is currently live. Triggering Hot Reload..."
+              echo "Process running. Reloading app..."
               pm2 reload server
             else
-              echo "Launching your expense tracker application instance..."
+              echo "Starting app for the first time..."
               pm2 start server.js --name "server"
             fi
 
-            # 6. Save configurations to ensure survival across system cycles
             pm2 save
