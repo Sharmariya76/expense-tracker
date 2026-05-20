@@ -1,4 +1,4 @@
-name: Deploy Static Website to EC2
+name: Deploy Static Site to EC2
 
 on:
   push:
@@ -13,18 +13,22 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup SSH Key
+      - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > key.pem
+          echo "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > key.pem
           chmod 600 key.pem
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Copy index.html to EC2
+      - name: Test SSH Connection
+        run: |
+          ssh -i key.pem ubuntu@${{ secrets.EC2_HOST }} "echo connected"
+
+      - name: Deploy file
         run: |
           scp -i key.pem index.html ubuntu@${{ secrets.EC2_HOST }}:/tmp/
 
-      - name: Deploy to Nginx
+      - name: Move to Nginx
         run: |
           ssh -i key.pem ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
             sudo mv /tmp/index.html /var/www/html/index.html
