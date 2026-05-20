@@ -21,50 +21,56 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
-            # 1. Create the application directory if it doesn't exist
+            # 1. Prepare directory with full root permissions
             sudo mkdir -p /home/ubuntu/expense-tracker
             sudo chown -R ubuntu:ubuntu /home/ubuntu/expense-tracker
             cd /home/ubuntu/expense-tracker
 
-            # 2. Check and manually install Node.js if it's missing on the EC2 instance
-            if ! command -v node &> /dev/null; then
-              echo "Node.js not found. Manually installing Node.js LTS (v20)..."
+            # 2. System updates and direct Node.js installation
+            if ! [ -f /usr/bin/node ]; then
+              echo "Installing Node.js..."
               sudo apt-get update -y
               sudo apt-get install -y curl gnupg
               curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
               sudo apt-get install -y nodejs
             fi
 
-            # 3. Check and manually install PM2 globally if it's missing
-            if ! command -v pm2 &> /dev/null; then
-              echo "PM2 not found. Manually installing PM2 globally..."
-              sudo npm install pm2 -g
+            # 3. Explicitly discover where npm is located to bypass sudo environment blocking
+            NPM_PATH=$(which npm || echo "/usr/bin/npm")
+
+            # 4. Check and install PM2 using the absolute path found for npm
+            if ! [ -f /usr/bin/pm2 ] && ! [ -f /usr/local/bin/pm2 ]; then
+              echo "Installing PM2 globally..."
+              sudo $NPM_PATH install pm2 -g --unsafe-perm
             fi
 
-            # 4. Create proper system symlinks to make sure sudo can always run them
+            # 5. Build rigid, fallback-proof system links in standard execution paths
             sudo ln -sf $(which node) /usr/bin/node
             sudo ln -sf $(which npm) /usr/bin/npm
             sudo ln -sf $(which pm2) /usr/bin/pm2
+            sudo ln -sf /usr/local/bin/pm2 /usr/bin/pm2 2>/dev/null || true
 
-            echo "Updating files from repository..."
+            echo "Setting up application structures..."
 
-            # 5. Initialize node project files if missing
+            # 6. Initialize dependencies directly through the absolute execution path
             if [ ! -f package.json ]; then
-              npm init -y
-              npm install express
+              $NPM_PATH init -y
+              $NPM_PATH install express
             fi
 
-            # 6. Install production dependencies
-            npm install --production
+            # 7. Localize dependencies
+            $NPM_PATH install --production
 
-            # 7. Start or reload the application server on Port 80
-            if sudo pm2 describe server > /dev/null 2>&1; then
-              echo "Application process found. Performing Zero-Downtime Reload..."
-              sudo pm2 reload server
+            # 8. Start/Reload your live web application on port 80 using absolute path routing
+            PM2_PATH=$(which pm2 || echo "/usr/bin/pm2")
+            
+            if sudo $PM2_PATH describe server > /dev/null 2>&1; then
+              echo "Application running. Performing Hot Reload..."
+              sudo $PM2_PATH reload server
             else
-              echo "Starting application process on port 80..."
-              sudo pm2 start server.js --name "server"
+              echo "Launching tracker on port 80..."
+              sudo $PM2_PATH start server.js --name "server"
             fi
 
-            # 8. Save PM2 configuration to handle system restarts
-            sudo pm2 save
+            # 9. Commit instance to device start registers
+            sudo $PM2_PATH save
