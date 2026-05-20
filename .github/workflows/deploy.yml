@@ -1,4 +1,4 @@
-name: Deploy Expense Tracker to Amazon EC2
+name: Deploy to Amazon EC2
 
 on:
   push:
@@ -10,54 +10,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-      # STEP 1: Copy your project files from GitHub to your EC2 instance
-      - name: Copy files to EC2 via SCP
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          source: "server.js,public/"   # Files and folders to copy
-          target: "/home/ubuntu/expense-tracker"
-
-      # STEP 2: Log in via SSH and restart the server
-      - name: Deploy to EC2 via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          script: |
-            # Load NVM environment variables so the runner sees node, npm, and pm2
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-
-            # Navigate to the project directory
-            cd /home/ubuntu/expense-tracker
-
-            echo "Syncing dependencies..."
-            
-            # Setup package configuration if it's missing
-            if [ ! -f package.json ]; then
-              npm init -y
-              npm install express
-            fi
-
-            # Install production dependencies
-            npm install --production
-
-            # Start or restart the app using PM2 on port 3000 (forwarded to port 80)
-            if pm2 describe server > /dev/null 2>&1; then
-              echo "Process running. Reloading app..."
-              pm2 reload server
-            else
-              echo "Starting app for the first time..."
-              pm2 start server.js --name "server"
-            fi
-
-            pm2 save
+    - name: Clean EC2 and Copy Fresh Files
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        source: "index.html"    # Explicitly target index.html to fix the tar error
+        target: "/var/www/html"
+        rm: true                # This deletes old files in /var/www/html before uploading!
