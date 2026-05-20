@@ -21,57 +21,32 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
-            # 1. Create the application folder
-            mkdir -p /home/ubuntu/expense-tracker
-            cd /home/ubuntu/expense-tracker
-
-            # 2. Install NVM (Node Version Manager) if it's not present
-            if [ ! -d "$HOME/.nvm" ]; then
-              echo "Installing NVM..."
-              curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-            fi
-
-            # 3. Load NVM environment variables dynamically into this session
+            # 1. CRITICAL: Explicitly source NVM so the non-interactive shell can see node, npm, and pm2
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
-            # 4. Install and lock down Node.js LTS version 20
-            if ! command -v node &> /dev/null; then
-              echo "Installing Node.js via NVM..."
-              nvm install 20
-              nvm use 20
-              nvm alias default 20
-            fi
+            # 2. Move directly into your application directory
+            cd /home/ubuntu/expense-tracker
 
-            # 5. Install PM2 globally under the user environment
-            if ! command -v pm2 &> /dev/null; then
-              echo "Installing PM2 via NVM..."
-              npm install pm2 -g
-            fi
-
-            echo "Deploying application code..."
-
-            # 6. Initialize dependencies safely without root/sudo
+            echo "Syncing application code..."
+            
+            # 3. Handle initialization if running cleanly
             if [ ! -f package.json ]; then
               npm init -y
               npm install express
             fi
 
-            # 7. Install production modules
+            # 4. Install project requirements 
             npm install --production
 
-            # 8. Set up port routing (Forward incoming Port 80 web traffic straight into Port 3000)
-            # This allows your server.js to safely run on port 3000 without requiring root access
-            sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 3000
-
-            # 9. Start or reload the application using PM2
+            # 5. Control PM2 lifecycle on port 3000 (which is forwarded to port 80)
             if pm2 describe server > /dev/null 2>&1; then
-              echo "Application found. Performing Safe Reload..."
+              echo "Application is currently live. Triggering Hot Reload..."
               pm2 reload server
             else
-              echo "Starting application process on local port 3000 (Forwarded to 80)..."
+              echo "Launching your expense tracker application instance..."
               pm2 start server.js --name "server"
             fi
 
-            # 10. Save running state
+            # 6. Save configurations to ensure survival across system cycles
             pm2 save
