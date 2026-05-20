@@ -3,51 +3,49 @@ name: Deploy Expense Tracker to Amazon EC2
 on:
   push:
     branches:
-      - main  # Trigger pipeline whenever code is pushed to the main branch
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Clone the code from the GitHub repository onto the runner
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Step 2: Establish an SSH connection, transfer files, and execute backend commands
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.EC2_HOST }}          # Your EC2 Public IP address
-          username: ubuntu                       # Default OS user for Ubuntu instances
-          key: ${{ secrets.EC2_SSH_KEY }}        # Your private key (.pem file content)
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
+            # Include standard Node.js binary environments
+            export PATH=$PATH:/usr/bin:/usr/local/bin
+
             # Move to the application directory
             cd /home/ubuntu/expense-tracker
 
-            # Clone or fetch updates if utilizing Git tracking inside the target directory
-            # For a single-file implementation, we can clean and pull or write directly:
-            echo "Pulling latest files from production/repository..."
+            echo "Updating files from production repository..."
             
-            # Initialize project metadata if running for the first time
+            # Initialize metadata if running for the first time
             if [ ! -f package.json ]; then
               npm init -y
               npm install express
             fi
 
-            # Clean and copy files (if you prefer direct transfers or git pulling)
-            # Assuming files are uploaded, let's ensure dependencies are healthy
+            # Install production dependencies
             npm install --production
 
-            # Check if PM2 is managing our server instance already
-            if pm2 describe server > /dev/null 2>&1; then
+            # Run PM2 with sudo to grant it permission to bind to Port 80
+            if sudo env PATH=$PATH pm2 describe server > /dev/null 2>&1; then
               echo "Application process found. Performing Zero-Downtime Reload..."
-              pm2 reload server
+              sudo env PATH=$PATH pm2 reload server
             else
-              echo "Starting application process for the first time..."
-              pm2 start server.js --name "server"
+              echo "Starting application process on port 80..."
+              sudo env PATH=$PATH pm2 start server.js --name "server"
             fi
             
-            # Save the PM2 state to bring it back online automatically on EC2 reboots
-            pm2 save
+            # Save the PM2 state to recover on system reboots
+            sudo env PATH=$PATH pm2 save
