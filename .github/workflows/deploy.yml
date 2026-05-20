@@ -1,4 +1,4 @@
-name: Deploy to Amazon EC2
+name: Deploy Static Website to EC2
 
 on:
   push:
@@ -10,16 +10,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Clean EC2 and Copy Fresh Files
-      uses: appleboy/scp-action@v0.1.7
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ubuntu
-        key: ${{ secrets.EC2_SSH_KEY }}
-        port: 22
-        source: "index.html"    # Explicitly target index.html to fix the tar error
-        target: "/var/www/html"
-        rm: true                # This deletes old files in /var/www/html before uploading!
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.KEY }}" > key.pem
+          chmod 600 key.pem
+          ssh-keyscan -H ${{ secrets.HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copy index.html to EC2
+        run: |
+          scp -i key.pem index.html ubuntu@${{ secrets.HOST }}:/tmp/
+
+      - name: Deploy to Nginx
+        run: |
+          ssh -i key.pem ubuntu@${{ secrets.HOST }} << 'EOF'
+            sudo mv /tmp/index.html /var/www/html/index.html
+            sudo systemctl restart nginx
+          EOF
