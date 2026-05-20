@@ -1,4 +1,4 @@
-name: Deploy to Amazon EC2
+name: Deploy Static Site to EC2
 
 on:
   push:
@@ -10,27 +10,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Clean Old Files and Deploy via rsync
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ubuntu
-        key: ${{ secrets.EC2_SSH_KEY }}
-        port: 22
-        # We pass the repo files to the remote server script dynamically
-        script: |
-          # 1. Clean the target directory completely
-          rm -rf /var/www/html/*
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > key.pem
+          chmod 600 key.pem
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-    - name: Copy Fresh Files to EC2
-      uses: appleboy/scp-action@v0.1.7
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ubuntu
-        key: ${{ secrets.EC2_SSH_KEY }}
-        port: 22
-        source: "."      # Copies everything in your repository (index.html, assets, etc.)
-        target: "/var/www/html"
+      - name: Deploy index.html to EC2
+        run: |
+          scp -i key.pem index.html ubuntu@${{ secrets.EC2_HOST }}:/tmp/
+
+      - name: Move to Nginx
+        run: |
+          ssh -i key.pem ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
+            sudo mv /tmp/index.html /var/www/html/index.html
+            sudo systemctl restart nginx
+          EOF
