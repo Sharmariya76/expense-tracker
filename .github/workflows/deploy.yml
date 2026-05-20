@@ -21,56 +21,57 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
-            # 1. Prepare directory with full root permissions
-            sudo mkdir -p /home/ubuntu/expense-tracker
-            sudo chown -R ubuntu:ubuntu /home/ubuntu/expense-tracker
+            # 1. Create the application folder
+            mkdir -p /home/ubuntu/expense-tracker
             cd /home/ubuntu/expense-tracker
 
-            # 2. System updates and direct Node.js installation
-            if ! [ -f /usr/bin/node ]; then
-              echo "Installing Node.js..."
-              sudo apt-get update -y
-              sudo apt-get install -y curl gnupg
-              curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-              sudo apt-get install -y nodejs
+            # 2. Install NVM (Node Version Manager) if it's not present
+            if [ ! -d "$HOME/.nvm" ]; then
+              echo "Installing NVM..."
+              curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
             fi
 
-            # 3. Explicitly discover where npm is located to bypass sudo environment blocking
-            NPM_PATH=$(which npm || echo "/usr/bin/npm")
+            # 3. Load NVM environment variables dynamically into this session
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
-            # 4. Check and install PM2 using the absolute path found for npm
-            if ! [ -f /usr/bin/pm2 ] && ! [ -f /usr/local/bin/pm2 ]; then
-              echo "Installing PM2 globally..."
-              sudo $NPM_PATH install pm2 -g --unsafe-perm
+            # 4. Install and lock down Node.js LTS version 20
+            if ! command -v node &> /dev/null; then
+              echo "Installing Node.js via NVM..."
+              nvm install 20
+              nvm use 20
+              nvm alias default 20
             fi
 
-            # 5. Build rigid, fallback-proof system links in standard execution paths
-            sudo ln -sf $(which node) /usr/bin/node
-            sudo ln -sf $(which npm) /usr/bin/npm
-            sudo ln -sf $(which pm2) /usr/bin/pm2
-            sudo ln -sf /usr/local/bin/pm2 /usr/bin/pm2 2>/dev/null || true
+            # 5. Install PM2 globally under the user environment
+            if ! command -v pm2 &> /dev/null; then
+              echo "Installing PM2 via NVM..."
+              npm install pm2 -g
+            fi
 
-            echo "Setting up application structures..."
+            echo "Deploying application code..."
 
-            # 6. Initialize dependencies directly through the absolute execution path
+            # 6. Initialize dependencies safely without root/sudo
             if [ ! -f package.json ]; then
-              $NPM_PATH init -y
-              $NPM_PATH install express
+              npm init -y
+              npm install express
             fi
 
-            # 7. Localize dependencies
-            $NPM_PATH install --production
+            # 7. Install production modules
+            npm install --production
 
-            # 8. Start/Reload your live web application on port 80 using absolute path routing
-            PM2_PATH=$(which pm2 || echo "/usr/bin/pm2")
-            
-            if sudo $PM2_PATH describe server > /dev/null 2>&1; then
-              echo "Application running. Performing Hot Reload..."
-              sudo $PM2_PATH reload server
+            # 8. Set up port routing (Forward incoming Port 80 web traffic straight into Port 3000)
+            # This allows your server.js to safely run on port 3000 without requiring root access
+            sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 3000
+
+            # 9. Start or reload the application using PM2
+            if pm2 describe server > /dev/null 2>&1; then
+              echo "Application found. Performing Safe Reload..."
+              pm2 reload server
             else
-              echo "Launching tracker on port 80..."
-              sudo $PM2_PATH start server.js --name "server"
+              echo "Starting application process on local port 3000 (Forwarded to 80)..."
+              pm2 start server.js --name "server"
             fi
 
-            # 9. Commit instance to device start registers
-            sudo $PM2_PATH save
+            # 10. Save running state
+            pm2 save
