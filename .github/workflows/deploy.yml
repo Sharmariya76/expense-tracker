@@ -16,21 +16,15 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > key.pem
-          chmod 600 key.pem
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Test SSH Connection
+      - name: Deploy index.html to EC2
         run: |
-          ssh -i key.pem ubuntu@${{ secrets.EC2_HOST }} "echo connected"
+          scp -i ~/.ssh/id_rsa index.html ubuntu@${{ secrets.EC2_HOST }}:/tmp/
 
-      - name: Deploy file
-        run: |
-          scp -i key.pem index.html ubuntu@${{ secrets.EC2_HOST }}:/tmp/
-
-      - name: Move to Nginx
-        run: |
-          ssh -i key.pem ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
+          ssh -i ~/.ssh/id_rsa ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
             sudo mv /tmp/index.html /var/www/html/index.html
             sudo systemctl restart nginx
           EOF
